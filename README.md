@@ -1,10 +1,10 @@
 # Docker-MongoCluster
 
-¹w­p´ú¸ÕMongo Cluster¬[ºc¦p¤U¹Ï¡G
+é è¨ˆæ¸¬è©¦Mongo Clusteræž¶æ§‹å¦‚ä¸‹åœ–ï¼š
 
-![¬[ºc¹Ï](images/Mongo Cluster.png)
+![æ¸¬è©¦æž¶æ§‹](https://raw.githubusercontent.com/HsYu223/Docker-Mongo-Cluster/master/images/Mongo%20Cluster.png)
 
-1 «Ø¥ßContainer volume
+1 å»ºç«‹Container volume
 
 ```bash
 docker volume create mongo1data
@@ -17,7 +17,7 @@ docker volume create mongo6data
 
 -------------------------------------------------------------------------------------------------------
 
-2 «Ø¥ß²Ä¤@­ÓReplica Set (mongo-set1)
+2 å»ºç«‹ç¬¬ä¸€å€‹Replica Set (mongo-set1)
 
 ```bash
 docker run -p 27017:27017 --name mongo1 --net host -d -v mongo1data:/data/db mongo mongod --shardsvr --replSet mongo-set1 --port 27017
@@ -33,7 +33,7 @@ docker exec -it mongo1 mongo SRVDOCKER-T:27017
 ```
 
 -------------------------------------------------------------------------------------------------------
-3 «Ø¥ß²Ä¤G­ÓReplica Set (mongo-set2)
+3 å»ºç«‹ç¬¬äºŒå€‹Replica Set (mongo-set2)
 
 ```bash
 docker run -p 27027:27027 --name mongo4 --net host -d mongo mongod --shardsvr --replSet mongo-set2 --port 27027
@@ -47,7 +47,7 @@ docker exec -it mongo1 mongo SRVDOCKER-T:27027
 ```
 
 -------------------------------------------------------------------------------------------------------
-4 «Ø¥ß¤@²ÕConfig Servers
+4 å»ºç«‹ä¸€çµ„Config Servers
 
 ```bash
 docker run -p 47017:47017 --name mongo-cfg1 --net host -d mongo /bin/bash -c " mkdir -p /tmp/mongo/db; mongod --configsvr --replSet config-set --port 47017 --dbpath /tmp/mongo/db"
@@ -58,7 +58,7 @@ docker exec -it mongo-cfg1 mongo SRVDOCKER-T:47017
 ```
 
 -------------------------------------------------------------------------------------------------------
-5 «Ø¥ßmongos (Router Service)
+5 å»ºç«‹mongos (Router Service)
 
 ```bash
 docker run -p 37017:37017 --name mongo-s1 --net host -d mongo /bin/bash -c " mongos --configdb config-set/SRVDOCKER-T:47017,SRVDOCKER-T:47018 --port 37017 "
@@ -89,20 +89,20 @@ docker exec -it mongo-s1 mongo SRVDOCKER-T:37017
 ![MongoDB Compass](images/MongoDB Compass.png)
 
 -------------------------------------------------------------------------------------------------------
-7 Docker Volume ³Æ¥÷&ÁÙ­ì
+7 Docker Volume å‚™ä»½&é‚„åŽŸ
 
 ```bash
-// volume ³Æ¥÷
+// volume å‚™ä»½
 docker run --rm --volumes-from mongo3 -v $(pwd):/backup busybox tar cvf /backup/mongo3data.tar /data
 
-//volume ÁÙ­ì
+//volume é‚„åŽŸ
 docker run --rm --volumes-from mongo3 -v $(pwd):/backup busybox tar xvf /backup/mongo3data.tar
 ```
 
 -------------------------------------------------------------------------------------------------------
-8 ¬°¥¿¦¡¾÷¥[¤J¨Ï¥ÎªÌ±b±K
+8 ç‚ºæ­£å¼æ©ŸåŠ å…¥ä½¿ç”¨è€…å¸³å¯†
 
-²£¥Íª÷Æ_³]©w(¨C¥x´ú¸Õ¾÷¶·«O«ùª÷Æ_¤@­P©Ê)
+ç”¢ç”Ÿé‡‘é‘°è¨­å®š(æ¯å°æ¸¬è©¦æ©Ÿé ˆä¿æŒé‡‘é‘°ä¸€è‡´æ€§)
 
 ```bash
 openssl rand -base64 756 > /data/mongo-keyfile
