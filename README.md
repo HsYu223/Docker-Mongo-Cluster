@@ -1,5 +1,7 @@
 # Docker-MongoCluster
 
+## 2023/07/01 更新6.0.6版本
+
 預計測試Mongo Cluster架構如下圖：
 
 ![測試架構](https://raw.githubusercontent.com/HsYu223/Docker-Mongo-Cluster/master/images/Mongo%20Cluster.png)
@@ -20,14 +22,14 @@ docker volume create mongo6data
 2 建立第一個Replica Set (mongo-set1)
 
 ```bash
-docker run -p 27017:27017 --name mongo1 --net host -d -v mongo1data:/data/db mongo mongod --shardsvr --replSet mongo-set1 --port 27017
+docker run -p 27017:27017 --name mongo1 -d -v mongo1data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set1 --port 27017
 
-docker run -p 27018:27018 --name mongo2 --net host -d -v mongo2data:/data/db mongo mongod --shardsvr --replSet mongo-set1 --port 27018
+docker run -p 27018:27018 --name mongo2 -d -v mongo2data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set1 --port 27018
 
-docker run -p 27019:27019 --name mongo3 --net host -d -v mongo3data:/data/db mongo mongod --shardsvr --replSet mongo-set1 --port 27019
+docker run -p 27019:27019 --name mongo3 -d -v mongo3data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set1 --port 27019
 
-docker exec -it mongo1 mongo SRVDOCKER-T:27017
-	config = { "_id": "mongo-set1", "members": [{"_id":0,"host":"SRVDOCKER-T:27017"},{"_id":1,"host":"SRVDOCKER-T:27018"},{"_id":2,"host":"SRVDOCKER-T:27019",priority:0,hidden:true}] }
+docker exec -it mongo1 mongosh {mongo1 ip}:27017
+	config = { "_id": "mongo-set1", "members": [{"_id":0,"host":"{mongo1 ip}:27017"},{"_id":1,"host":"{mongo2 ip}::27018"},{"_id":2,"host":"{mongo3 ip}::27019",priority:0,hidden:true}] }
 	rs.initiate(config)
 	rs.status()
 ```
@@ -36,12 +38,14 @@ docker exec -it mongo1 mongo SRVDOCKER-T:27017
 3 建立第二個Replica Set (mongo-set2)
 
 ```bash
-docker run -p 27027:27027 --name mongo4 --net host -d mongo mongod --shardsvr --replSet mongo-set2 --port 27027
-docker run -p 27028:27028 --name mongo5 --net host -d mongo mongod --shardsvr --replSet mongo-set2 --port 27028
-docker run -p 27029:27029 --name mongo6 --net host -d mongo mongod --shardsvr --replSet mongo-set2 --port 27029
+docker run -p 27027:27027 --name mongo4 -d -v mongo4data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set2 --port 27027
 
-docker exec -it mongo1 mongo SRVDOCKER-T:27027
-	config = { "_id": "mongo-set2", "members": [{"_id":0,"host":"SRVDOCKER-T:27027"},{"_id":1,"host":"SRVDOCKER-T:27028"},{"_id":2,"host":"SRVDOCKER-T:27029",priority:0,hidden:true}] }
+docker run -p 27028:27028 --name mongo5 -d -v mongo5data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set2 --port 27028
+
+docker run -p 27029:27029 --name mongo6 -d -v mongo6data:/data/db mongo:6.0.6 mongod --shardsvr --replSet mongo-set2 --port 27029
+
+docker exec -it mongo1 mongosh {mongo4 ip}:27027
+	config = { "_id": "mongo-set2", "members": [{"_id":0,"host":"{mongo4 ip}:27027"},{"_id":1,"host":"{mongo5 ip}:27028"},{"_id":2,"host":"{mongo6 ip}:27029",priority:0,hidden:true}] }
 	rs.initiate(config)
 	rs.status()
 ```
@@ -50,11 +54,12 @@ docker exec -it mongo1 mongo SRVDOCKER-T:27027
 4 建立一組Config Servers
 
 ```bash
-docker run -p 47017:47017 --name mongo-cfg1 --net host -d mongo /bin/bash -c " mkdir -p /tmp/mongo/db; mongod --configsvr --replSet config-set --port 47017 --dbpath /tmp/mongo/db"
-docker run -p 47018:47018 --name mongo-cfg2 --net host -d mongo /bin/bash -c " mkdir -p /tmp/mongo/db; mongod --configsvr --replSet config-set --port 47018 --dbpath /tmp/mongo/db"
+docker run -p 47017:47017 --name mongo-cfg1 -d mongo:6.0.6 /bin/bash -c " mkdir -p /tmp/mongo/db; mongod --configsvr --replSet config-set --dbpath /tmp/mongo/db --port 47017 --bind_ip 0.0.0.0 "
 
-docker exec -it mongo-cfg1 mongo SRVDOCKER-T:47017
-	rs.initiate({"_id":"config-set","configsvr":true,"members":[{"_id":0,"host":"SRVDOCKER-T:47017"},{"_id":1,"host":"SRVDOCKER-T:47018"}]})
+docker run -p 47018:47018 --name mongo-cfg2 -d mongo:6.0.6 /bin/bash -c " mkdir -p /tmp/mongo/db; mongod --configsvr --replSet config-set --dbpath /tmp/mongo/db --port 47018 --bind_ip 0.0.0.0 "
+
+docker exec -it mongo-cfg1 mongosh {mongo-cfg1 ip}:47017
+	rs.initiate({"_id":"config-set","configsvr":true,"members":[{"_id":0,"host":"{mongo-cfg1 ip}:47017"},{"_id":1,"host":"{mongo-cfg2 ip}:47018"}]})
 ```
 
 -------------------------------------------------------------------------------------------------------
@@ -64,17 +69,24 @@ docker exec -it mongo-cfg1 mongo SRVDOCKER-T:47017
 docker run -p 37017:37017 --name mongo-s1 --net host -d mongo /bin/bash -c " mongos --configdb config-set/SRVDOCKER-T:47017,SRVDOCKER-T:47018 --port 37017 "
 docker run -p 37018:37018 --name mongo-s2 --net host -d mongo /bin/bash -c " mongos --configdb config-set/SRVDOCKER-T:47017,SRVDOCKER-T:47018 --port 37018 "
 
-docker exec -it mongo-s1 mongo SRVDOCKER-T:37017
-	sh.addShard("mongo-set1/SRVDOCKER-T:27017,SRVDOCKER-T:27018")
-	sh.addShard("mongo-set2/SRVDOCKER-T:27027,SRVDOCKER-T:27028")
-	
-	sh.enableSharding('ydb')
-	db.ycollection.ensureIndex( { _id : "hashed" } )
-	sh.shardCollection("ydb.ycollection", { "_id": "hashed" } )
+docker run -p 37017:37017 --name mongo-s1 -d mongo:6.0.6 /bin/bash -c " mongos --configdb config-set/{mongo-cfg1 ip}:47017,{mongo-cfg2 ip}:47018 --port 37017 "
+docker run -p 37017:37018 --name mongo-s2 -d mongo:6.0.6 /bin/bash -c " mongos --configdb config-set/{mongo-cfg1 ip}:47017,{mongo-cfg2 ip}:47018 --port 37018 "
 
-	use ydb;
-	var objs = []; for (var i=0;i<1000000;i++){	objs.push({"name":"user"+i}); }
-	db.ycollection.insert(objs);
+docker exec -it mongo-s1 mongosh {mongo-s1 ip}:37017
+	sh.addShard("mongo-set1/{mongo1 ip}:27017,{mongo2 ip}:27018")
+	sh.addShard("mongo-set2/{mongo4 ip}:27027,{mongo5 ip}:27028")
+```
+
+6. 延續從mongos 建立分片索引
+
+```bash
+sh.enableSharding('AccessLog')
+db.AppEvent.ensureIndex( { _id : "hashed" } )
+sh.shardCollection("AccessLog.AppEvent", { "_id": "hashed" } )
+
+use AccessLog;
+var objs = []; for (var i=0;i<100;i++){	objs.push({"serialNo":i,"name":"user"+i}); }
+db.AppEvent.insert(objs);
 ```
 
 -------------------------------------------------------------------------------------------------------
